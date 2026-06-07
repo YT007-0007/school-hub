@@ -1,66 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>School Hub</title>
+    <title>School Hub Master</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; }
-        .view { display: none; padding: 20px; border: 2px solid #333; margin-top: 20px; }
-        /* Style the scanner area to look professional */
-        #scanner-view { display: block; border: 4px dashed #555; padding: 50px; margin-bottom: 20px; }
-        .login-box { margin-top: 50px; padding: 10px; border-top: 1px solid #ccc; }
+        .view { display: none; padding: 20px; border: 1px solid #ccc; }
+        .card { border: 2px solid #333; margin: 10px; padding: 15px; border-radius: 8px; cursor: pointer; }
+        textarea { width: 90%; height: 60px; margin-top: 10px; }
+        body { font-family: sans-serif; text-align: center; }
+        #admin-zone { margin-top: 50px; border: 3px solid red; padding: 20px; }
     </style>
 </head>
 <body>
 
-    <div id="scanner-view">
-        <h1>Welcome to School Hub</h1>
-        <p>Please scan your ID card to continue.</p>
-        <input type="text" id="scannerInput" placeholder="Scanner Input">
-        <button onclick="checkScan()">Submit</button>
+    <div id="view-scanner" class="view" style="display: block;">
+        <h1>School Hub Login</h1>
+        <input type="text" id="idInput" placeholder="Scan ID (P=Principal, T=Teacher, S=Student)">
+        <button onclick="handleScan()">Login</button>
+        <div id="admin-zone">
+            <h3>Admin Master Access</h3>
+            <input type="password" id="adminPass" placeholder="1234">
+            <button onclick="checkAdmin()">Unlock</button>
+        </div>
     </div>
 
-    <div id="view-admin" class="view"><h1>Admin Dashboard</h1></div>
-    <div id="view-teacher" class="view"><h1>Teacher Portal</h1></div>
-    <div id="view-parent" class="view"><h1>Parent/Student Portal</h1></div>
-
-    <div class="login-box">
-        <h3>Admin/Teacher Access</h3>
-        <input type="password" id="passInput" placeholder="Enter Password">
-        <button onclick="checkPassword()">Login</button>
+    <div id="view-teacher" class="view">
+        <h1>Teacher Class: <span id="current-class"></span></h1>
+        <div id="student-roster"></div>
+        <button onclick="location.reload()">Back</button>
     </div>
+
+    <div id="view-parent" class="view">
+        <h1>Student Portal</h1>
+        <div id="parent-msg-area" class="card"></div>
+        <button onclick="location.reload()">Logout</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 
     <script>
-        // 1. PASSWORD SETTINGS
-        const ADMIN_PASS = "1234"; // You can change this password here
+        const db = firebase.firestore();
 
-        // 2. SCANNER LOGIC
-        function checkScan() {
-            const data = document.getElementById('scannerInput').value;
-            // Expected format: "Role:ID" (e.g., S:001)
-            const [role, id] = data.split(':');
-            renderView(role);
+        // TEACHER: Updates the parent's message board
+        async function updateParentNote(studentId) {
+            const note = document.getElementById('note-' + studentId).value;
+            await db.collection("students").doc(studentId).update({ parentMessage: note });
+            alert("Message sent to parent!");
         }
 
-        // 3. PASSWORD LOGIC
-        function checkPassword() {
-            const pass = document.getElementById('passInput').value;
-            if (pass === ADMIN_PASS) {
-                renderView('A'); // Logs in as Admin
-            } else {
-                alert("Incorrect Password");
-            }
+        // PARENT: Sees the teacher's message
+        async function loadParentView(studentId) {
+            document.getElementById('view-scanner').style.display = 'none';
+            document.getElementById('view-parent').style.display = 'block';
+            const doc = await db.collection("students").doc(studentId).get();
+            document.getElementById('parent-msg-area').innerHTML = 
+                `<h3>Message from Teacher:</h3><p>${doc.data().parentMessage || "No new notes."}</p>`;
         }
 
-        // 4. VIEW CONTROLLER
-        function renderView(role) {
-            document.getElementById('scanner-view').style.display = 'none'; // Hide scanner
-            document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
-            
-            if (role === 'A') document.getElementById('view-admin').style.display = 'block';
-            if (role === 'T') document.getElementById('view-teacher').style.display = 'block';
-            if (role === 'S') document.getElementById('view-parent').style.display = 'block';
+        // UNIVERSAL SCANNER ROUTER
+        async function handleScan() {
+            const id = document.getElementById('idInput').value;
+            if (id.startsWith('T')) { /* ... load teacher roster ... */ }
+            else if (id.startsWith('S')) { loadParentView(id); }
         }
+        
+        // ... (Include Principal and Admin functions here)
     </script>
 </body>
 </html>
