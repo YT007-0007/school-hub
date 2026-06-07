@@ -1,186 +1,65 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>School Hub - QR Attendance System</title>
-    <script src="https://jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
-        body { background-color: #f4f6f9; color: #1f2937; padding: 15px; }
-        .container { max-width: 750px; margin: 0 auto; }
-        header { background: #4f46e5; color: white; padding: 20px; text-align: center; border-radius: 10px; margin-bottom: 15px; }
-        .nav-tabs { display: flex; gap: 8px; margin-bottom: 15px; overflow-x: auto; }
-        .tab-btn { background: #e5e7eb; padding: 10px 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; white-space: nowrap; }
-        .tab-btn.active { background: #4f46e5; color: white; }
-        .tab-view { display: none; }
-        .tab-view.active { display: block; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        h2 { color: #1e1b4b; margin-bottom: 12px; font-size: 1.25rem; }
-        ul { list-style: none; }
-        li { padding: 12px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; background: #fff; margin-bottom: 5px; border-radius: 4px; }
-        .badge { font-weight: bold; color: #065f46; background: #d1fae5; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
-        input, select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #d1d5db; border-radius: 6px; }
-        button { background: #4f46e5; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        #reader { width: 100%; max-width: 450px; margin: 0 auto; border: none !important; border-radius: 8px; overflow: hidden; }
-        .scan-alert { background: #d1fae5; color: #065f46; padding: 12px; border-radius: 6px; font-weight: bold; margin-top: 10px; text-align: center; display: none; }
-    </style>
-</head>
-<body>
+// 1. FIREBASE INITIALIZATION
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_ID",
+  appId: "YOUR_APP_ID"
+};
 
-    <div class="container">
-        <header>
-            <h1>School Hub Portal</h1>
-            <p>Tablet QR Code Attendance Station</p>
-        </header>
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-        <nav class="nav-tabs">
-            <button class="tab-btn active" onclick="switchTab('scan-view')">📷 QR Station</button>
-            <button class="tab-btn" onclick="switchTab('dashboard-view')">📊 Grades</button>
-            <button class="tab-btn" onclick="switchTab('supplies-view')">✏️ Supplies</button>
-            <button class="tab-btn" onclick="switchTab('register-view')">📝 Register</button>
-            <button class="tab-btn" onclick="switchTab('admin-view')" style="margin-left:auto; background:#374151; color:white;">⚙️ Admin</button>
-        </nav>
+// 2. EMERGENCY LISTENER (Updates every tablet in real-time)
+db.collection("system").doc("emergency").onSnapshot((doc) => {
+    const overlay = document.getElementById('emergency-overlay');
+    if (doc.exists && doc.data().active) {
+        overlay.style.display = 'block';
+    } else {
+        overlay.style.display = 'none';
+    }
+});
 
-        <div id="scan-view" class="tab-view active">
-            <div class="card" style="text-align: center;">
-                <h2>Scan Entrance Terminal</h2>
-                <p style="color: #6b7280; margin-bottom: 15px;">Hold student QR code up to the front camera lens</p>
-                
-                <div id="reader"></div>
-                <div class="scan-alert" id="scan-success"></div>
-            </div>
-        </div>
+// 3. SCANNER ENGINE (Records attendance to the cloud)
+async function scanEngine(scannedData) {
+    const [role, id] = scannedData.split(':');
+    
+    if (role === 'S') {
+        await db.collection("students").doc(id).update({
+            isPresent: true,
+            lastCheckIn: new Date().toLocaleTimeString()
+        });
+        console.log("Attendance recorded for: " + id);
+    }
+    renderView(role, id);
+}
 
-        <div id="dashboard-view" class="tab-view">
-            <div class="card">
-                <h2>Student Report Cards</h2>
-                <ul id="grades-list"></ul>
-            </div>
-        </div>
+// 4. MESSAGING SYSTEM (For parents and teachers)
+async function sendMessage(studentId, teacherId, messageText) {
+    await db.collection("chats").add({
+        studentId: studentId,
+        teacherId: teacherId,
+        text: messageText,
+        sender: "parent",
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+}
 
-        <div id="supplies-view" class="tab-view">
-            <div class="card">
-                <h2>Required School Supplies</h2>
-                <ul id="supplies-list"></ul>
-            </div>
-        </div>
+// 5. EMERGENCY TRIGGER (Can be called by any authorized button)
+async function triggerEmergency() {
+    await db.collection("system").doc("emergency").set({
+        active: true,
+        timestamp: new Date().toISOString()
+    });
+}
 
-        <div id="register-view" class="tab-view">
-            <div class="card">
-                <h2>New Student Registration</h2>
-                <form id="registration-form" onsubmit="handleRegistration(event)">
-                    <input type="text" id="student-name" placeholder="Student's Full Name" required>
-                    <select id="student-grade-level" required>
-                        <option value="">Select Grade Level</option>
-                        <option value="Kindergarten">Kindergarten</option>
-                        <option value="Grade 1">Grade 1</option>
-                        <option value="Grade 2">Grade 2</option>
-                    </select>
-                    <button type="submit" style="width:100%;">Submit Registration</button>
-                </form>
-            </div>
-        </div>
-
-        <div id="admin-view" class="tab-view">
-            <div class="card" style="background:#f0fdf4;">
-                <h2>Today's Attendance Log (Live Scans)</h2>
-                <ul id="attendance-list"></ul>
-            </div>
-            <div class="card">
-                <h2>Registered Roster</h2>
-                <ul id="roster-list"></ul>
-            </div>
-        </div>
-
-    </div>
-
-    <script>
-        let appData = {
-            grades: JSON.parse(localStorage.getItem('sh_grades')) || [{ subject: "Mathematics", score: "A (92%)" }],
-            supplies: JSON.parse(localStorage.getItem('sh_supplies')) || ["Notebooks (3x)"],
-            roster: JSON.parse(localStorage.getItem('sh_roster')) || [],
-            attendance: JSON.parse(localStorage.getItem('sh_attendance')) || []
-        };
-
-        let qrScannerInstance = null;
-
-        function switchTab(viewId) {
-            document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
-            if(event) event.currentTarget.classList.add('active');
-            
-            if (viewId === 'scan-view') { startScanner(); } else { stopScanner(); }
-        }
-
-        function startScanner() {
-            if (qrScannerInstance) return;
-            
-            qrScannerInstance = new Html5QrcodeScanner("reader", { 
-                fps: 10, 
-                qrbox: { width: 250, height: 250 },
-                rememberLastUsedCamera: true
-            });
-            
-            qrScannerInstance.render(onScanSuccess, onScanFailure);
-        }
-
-        function stopScanner() {
-            if (qrScannerInstance) {
-                qrScannerInstance.clear().then(() => { qrScannerInstance = null; }).catch(err => console.log(err));
-            }
-        }
-
-        function onScanSuccess(decodedText) {
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            
-            // Log attendance
-            appData.attendance.unshift({ name: decodedText, time: timeStr });
-            
-            // Alert Flash
-            const alertBox = document.getElementById('scan-success');
-            alertBox.innerHTML = `✅ Welcome, ${decodedText}! Checked in at ${timeStr}.`;
-            alertBox.style.display = 'block';
-            setTimeout(() => { alertBox.style.display = 'none'; }, 3000);
-            
-            renderPortal();
-        }
-
-        function onScanFailure(error) { // Quietly handle frame search skips }
-
-        function renderPortal() {
-            document.getElementById('grades-list').innerHTML = appData.grades.map(g => `<li><span>${g.subject}</span><span class="badge">${g.score}</span></li>`).join('');
-            document.getElementById('supplies-list').innerHTML = appData.supplies.map(s => `<li><span>${s}</span></li>`).join('');
-            
-            const attList = document.getElementById('attendance-list');
-            attList.innerHTML = appData.attendance.length === 0 ? `<li>No check-ins today.</li>` : appData.attendance.map(e => `<li><span>☀️ <strong>${e.name}</strong> arrived</span> <span class="badge" style="background:#dbeafe; color:#1e40af;">${e.time}</span></li>`).join('');
-
-            const rosterList = document.getElementById('roster-list');
-            rosterList.innerHTML = appData.roster.length === 0 ? `<li>No students registered.</li>` : appData.roster.map(r => `<li><span><strong>${r.name}</strong> (${r.grade})</span></li>`).join('');
-
-            localStorage.setItem('sh_grades', JSON.stringify(appData.grades));
-            localStorage.setItem('sh_supplies', JSON.stringify(appData.supplies));
-            localStorage.setItem('sh_roster', JSON.stringify(appData.roster));
-            localStorage.setItem('sh_attendance', JSON.stringify(appData.attendance));
-        }
-
-        function handleRegistration(event) {
-            event.preventDefault();
-            appData.roster.push({
-                name: document.getElementById('student-name').value,
-                grade: document.getElementById('student-grade-level').value
-            });
-            document.getElementById('registration-form').reset();
-            renderPortal();
-            alert("Student added to roster!");
-        }
-
-        renderPortal();
-        // Kick off camera tracking right away on load
-        setTimeout(startScanner, 500);
-    </script>
-</body>
-</html>
-
+// 6. VIEW CONTROLLER (Switches screens based on user role)
+function renderView(role, id) {
+    document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+    
+    if (role === 'A') document.getElementById('view-admin').style.display = 'block';
+    if (role === 'T') document.getElementById('view-teacher').style.display = 'block';
+    if (role === 'P') document.getElementById('view-principal').style.display = 'block';
+    if (role === 'S') document.getElementById('view-parent').style.display = 'block';
+}
