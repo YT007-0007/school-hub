@@ -1,70 +1,48 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>School Hub Master</title>
-    <style>
-        .view { display: none; padding: 20px; border: 1px solid #ccc; }
-        .card { border: 2px solid #333; margin: 10px; padding: 15px; border-radius: 8px; cursor: pointer; }
-        textarea { width: 90%; height: 60px; margin-top: 10px; }
-        body { font-family: sans-serif; text-align: center; }
-        #admin-zone { margin-top: 50px; border: 3px solid red; padding: 20px; }
-    </style>
+    <title>SchoolHub</title>
 </head>
 <body>
 
-    <div id="view-scanner" class="view" style="display: block;">
-        <h1>School Hub Login</h1>
-        <input type="text" id="idInput" placeholder="Scan ID (P=Principal, T=Teacher, S=Student)">
-        <button onclick="handleScan()">Login</button>
-        <div id="admin-zone">
-            <h3>Admin Master Access</h3>
-            <input type="password" id="adminPass" placeholder="1234">
-            <button onclick="checkAdmin()">Unlock</button>
-        </div>
-    </div>
+    <h1>Welcome to SchoolHub</h1>
 
-    <div id="view-teacher" class="view">
-        <h1>Teacher Class: <span id="current-class"></span></h1>
-        <div id="student-roster"></div>
-        <button onclick="location.reload()">Back</button>
-    </div>
+    <script type="module">
+        // 1. Import the necessary tools from Google
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
 
-    <div id="view-parent" class="view">
-        <h1>Student Portal</h1>
-        <div id="parent-msg-area" class="card"></div>
-        <button onclick="location.reload()">Logout</button>
-    </div>
+        // 2. Your project's unique "ID Card"
+        const firebaseConfig = {
+            apiKey: "AIzaSyB39QAyq-fQj4QMpIFEhnnhkYpaVzNgHB8",
+            authDomain: "schoolhub-72ad9.firebaseapp.com",
+            projectId: "schoolhub-72ad9",
+            storageBucket: "schoolhub-72ad9.firebasestorage.app",
+            messagingSenderId: "328444642318",
+            appId: "1:328444642318:web:b7371e557f55407a9f685f"
+        };
 
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+        // 3. Connect to Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        console.log("SchoolHub is connected to the database!");
 
-    <script>
-        const db = firebase.firestore();
-
-        // TEACHER: Updates the parent's message board
-        async function updateParentNote(studentId) {
-            const note = document.getElementById('note-' + studentId).value;
-            await db.collection("students").doc(studentId).update({ parentMessage: note });
-            alert("Message sent to parent!");
+        // 4. Function to save a student (you can run this whenever you want)
+        async function saveMyFirstStudent() {
+            try {
+                const docRef = await addDoc(collection(db, "students"), {
+                    name: "John Doe",
+                    grade: "10th"
+                });
+                console.log("Student saved with ID: ", docRef.id);
+            } catch (e) {
+                console.error("Error adding student: ", e);
+            }
         }
 
-        // PARENT: Sees the teacher's message
-        async function loadParentView(studentId) {
-            document.getElementById('view-scanner').style.display = 'none';
-            document.getElementById('view-parent').style.display = 'block';
-            const doc = await db.collection("students").doc(studentId).get();
-            document.getElementById('parent-msg-area').innerHTML = 
-                `<h3>Message from Teacher:</h3><p>${doc.data().parentMessage || "No new notes."}</p>`;
-        }
-
-        // UNIVERSAL SCANNER ROUTER
-        async function handleScan() {
-            const id = document.getElementById('idInput').value;
-            if (id.startsWith('T')) { /* ... load teacher roster ... */ }
-            else if (id.startsWith('S')) { loadParentView(id); }
-        }
-        
-        // ... (Include Principal and Admin functions here)
+        // Run the function
+        saveMyFirstStudent();
     </script>
+
 </body>
 </html>
