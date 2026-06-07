@@ -1,18 +1,23 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>SchoolHub</title>
-</head>
-<body>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Hub</title>
+    
+    <!-- Styling -->
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; }
+        #camera-view { width: 100%; max-width: 500px; height: 300px; background: #ddd; border: 2px dashed #555; margin: 20px auto; }
+        .dashboard-btn { padding: 12px 24px; margin: 10px; cursor: pointer; font-size: 16px; }
+    </style>
 
-    <h1>Welcome to SchoolHub</h1>
-
+    <!-- Firebase SDKs -->
     <script type="module">
-        // 1. Import the necessary tools from Google
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
-        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // 2. Your project's unique "ID Card"
         const firebaseConfig = {
             apiKey: "AIzaSyB39QAyq-fQj4QMpIFEhnnhkYpaVzNgHB8",
             authDomain: "schoolhub-72ad9.firebaseapp.com",
@@ -22,27 +27,67 @@
             appId: "1:328444642318:web:b7371e557f55407a9f685f"
         };
 
-        // 3. Connect to Firebase
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        console.log("SchoolHub is connected to the database!");
+        window.db = getFirestore(app);
+    </script>
+</head>
+<body>
 
-        // 4. Function to save a student (you can run this whenever you want)
-        async function saveMyFirstStudent() {
-            try {
-                const docRef = await addDoc(collection(db, "students"), {
-                    name: "John Doe",
-                    grade: "10th"
-                });
-                console.log("Student saved with ID: ", docRef.id);
-            } catch (e) {
-                console.error("Error adding student: ", e);
+    <div id="scanner-container">
+        <h1>School Hub</h1>
+        <p>Scan your QR code to check in:</p>
+        <div id="camera-view"></div>
+        <br>
+        <button onclick="adminLogin()">Admin Access</button>
+    </div>
+
+    <div id="dashboard-content"></div>
+
+    <!-- QR Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <script>
+        const ADMIN_PASSWORD = "1432";
+
+        // 1. Scanner Logic
+        function startScanner() {
+            const html5QrCode = new Html5Qrcode("camera-view");
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                { fps: 10, qrbox: 250 },
+                (decodedText) => {
+                    handleScanResult(decodedText);
+                    html5QrCode.stop();
+                }
+            ).catch(err => console.log("Scanner error: ", err));
+        }
+
+        // 2. Routing Logic
+        function handleScanResult(data) {
+            document.getElementById('dashboard-content').innerHTML = `
+                <h2>Dashboard for: ${data}</h2>
+                <button class="dashboard-btn" onclick="alert('Viewing Supply List...')">View Supply List</button>
+                <button class="dashboard-btn" onclick="alert('Message Sent!')">Message Teacher</button>
+            `;
+        }
+
+        // 3. Admin Gateway
+        function adminLogin() {
+            const userInput = prompt("Enter Admin Code:");
+            if (userInput === ADMIN_PASSWORD) {
+                document.getElementById('dashboard-content').innerHTML = `
+                    <h2>Admin Master Dashboard</h2>
+                    <button class="dashboard-btn">Manage Teachers</button>
+                    <button class="dashboard-btn">View Attendance Logs</button>
+                    <button class="dashboard-btn">Global Messaging</button>
+                `;
+            } else {
+                alert("Access Denied.");
             }
         }
 
-        // Run the function
-        saveMyFirstStudent();
+        // Initialize on load
+        window.onload = startScanner;
     </script>
-
 </body>
 </html>
