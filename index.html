@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,14 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>School Hub</title>
     
-    <!-- Styling -->
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; }
-        #camera-view { width: 100%; max-width: 500px; height: 300px; background: #ddd; border: 2px dashed #555; margin: 20px auto; }
+        #camera-view { width: 100%; max-width: 500px; height: 300px; background: #ddd; border: 2px dashed #555; margin: 20px auto; overflow: hidden; }
         .dashboard-btn { padding: 12px 24px; margin: 10px; cursor: pointer; font-size: 16px; }
+        #error-log { color: red; font-weight: bold; }
     </style>
 
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -35,59 +33,55 @@
 
     <div id="scanner-container">
         <h1>School Hub</h1>
-        <p>Scan your QR code to check in:</p>
         <div id="camera-view"></div>
+        <div id="error-log"></div>
         <br>
         <button onclick="adminLogin()">Admin Access</button>
     </div>
 
     <div id="dashboard-content"></div>
 
-    <!-- QR Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <script>
         const ADMIN_PASSWORD = "1432";
 
-        // 1. Scanner Logic
         function startScanner() {
+            const errorElement = document.getElementById('error-log');
             const html5QrCode = new Html5Qrcode("camera-view");
+            
             html5QrCode.start(
                 { facingMode: "environment" }, 
                 { fps: 10, qrbox: 250 },
                 (decodedText) => {
-                    handleScanResult(decodedText);
+                    document.getElementById('dashboard-content').innerHTML = `<h3>Scanned: ${decodedText}</h3>`;
                     html5QrCode.stop();
+                },
+                (err) => {
+                    // Silent logging for scanning errors
                 }
-            ).catch(err => console.log("Scanner error: ", err));
+            ).catch(err => {
+                errorElement.innerHTML = "Camera error: " + err;
+            });
         }
 
-        // 2. Routing Logic
-        function handleScanResult(data) {
-            document.getElementById('dashboard-content').innerHTML = `
-                <h2>Dashboard for: ${data}</h2>
-                <button class="dashboard-btn" onclick="alert('Viewing Supply List...')">View Supply List</button>
-                <button class="dashboard-btn" onclick="alert('Message Sent!')">Message Teacher</button>
-            `;
-        }
-
-        // 3. Admin Gateway
         function adminLogin() {
             const userInput = prompt("Enter Admin Code:");
             if (userInput === ADMIN_PASSWORD) {
                 document.getElementById('dashboard-content').innerHTML = `
                     <h2>Admin Master Dashboard</h2>
                     <button class="dashboard-btn">Manage Teachers</button>
-                    <button class="dashboard-btn">View Attendance Logs</button>
-                    <button class="dashboard-btn">Global Messaging</button>
+                    <button class="dashboard-btn">View Attendance</button>
                 `;
             } else {
                 alert("Access Denied.");
             }
         }
 
-        // Initialize on load
-        window.onload = startScanner;
+        // Force wait for full page load before starting
+        window.addEventListener('load', () => {
+            setTimeout(startScanner, 1000);
+        });
     </script>
 </body>
 </html>
