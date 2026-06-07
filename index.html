@@ -5,17 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>School Hub</title>
     
+    <!-- CSS Styling -->
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; }
-        #camera-view { width: 100%; max-width: 500px; height: 300px; background: #ddd; border: 2px dashed #555; margin: 20px auto; overflow: hidden; }
-        .dashboard-btn { padding: 12px 24px; margin: 10px; cursor: pointer; font-size: 16px; }
-        #error-log { color: red; font-weight: bold; }
+        #camera-view { width: 100%; max-width: 500px; height: 300px; background: #eee; border: 2px dashed #555; margin: 20px auto; display: flex; align-items: center; justify-content: center; }
+        .action-btn { padding: 15px 30px; font-size: 18px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; margin: 5px; }
+        .admin-btn { padding: 10px 20px; font-size: 14px; cursor: pointer; background: #6c757d; color: white; border: none; border-radius: 5px; margin: 5px; }
+        #dashboard-content { margin-top: 20px; }
     </style>
 
+    <!-- Firebase SDK Setup -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
+        
         const firebaseConfig = {
             apiKey: "AIzaSyB39QAyq-fQj4QMpIFEhnnhkYpaVzNgHB8",
             authDomain: "schoolhub-72ad9.firebaseapp.com",
@@ -24,32 +27,33 @@
             messagingSenderId: "328444642318",
             appId: "1:328444642318:web:b7371e557f55407a9f685f"
         };
-
+        
         const app = initializeApp(firebaseConfig);
         window.db = getFirestore(app);
     </script>
 </head>
 <body>
 
-    <div id="scanner-container">
-        <h1>School Hub</h1>
-        <div id="camera-view"></div>
-        <div id="error-log"></div>
-        <br>
-        <button onclick="adminLogin()">Admin Access</button>
-    </div>
+    <h1>School Hub</h1>
+    <div id="camera-view">Camera Preview</div>
+    
+    <br>
+    <button class="action-btn" onclick="startScanner()">Tap to Start Camera</button>
+    <br>
+    <button class="admin-btn" onclick="adminLogin()">Admin Access</button>
 
     <div id="dashboard-content"></div>
 
+    <!-- QR Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode"></script>
 
+    <!-- Main Application Logic -->
     <script>
         const ADMIN_PASSWORD = "1432";
 
+        // Scanner Logic
         function startScanner() {
-            const errorElement = document.getElementById('error-log');
             const html5QrCode = new Html5Qrcode("camera-view");
-            
             html5QrCode.start(
                 { facingMode: "environment" }, 
                 { fps: 10, qrbox: 250 },
@@ -57,31 +61,26 @@
                     document.getElementById('dashboard-content').innerHTML = `<h3>Scanned: ${decodedText}</h3>`;
                     html5QrCode.stop();
                 },
-                (err) => {
-                    // Silent logging for scanning errors
-                }
+                (err) => { /* Scanning loop errors ignored */ }
             ).catch(err => {
-                errorElement.innerHTML = "Camera error: " + err;
+                alert("Camera Error: Please ensure you have granted camera permission and no other app is using it.");
             });
         }
 
+        // Admin Logic
         function adminLogin() {
-            const userInput = prompt("Enter Admin Code:");
-            if (userInput === ADMIN_PASSWORD) {
+            const pass = prompt("Enter Admin Code:");
+            if (pass === ADMIN_PASSWORD) {
                 document.getElementById('dashboard-content').innerHTML = `
                     <h2>Admin Master Dashboard</h2>
-                    <button class="dashboard-btn">Manage Teachers</button>
-                    <button class="dashboard-btn">View Attendance</button>
+                    <button class="action-btn">Manage Teachers</button>
+                    <button class="action-btn">View Attendance</button>
                 `;
             } else {
                 alert("Access Denied.");
             }
         }
-
-        // Force wait for full page load before starting
-        window.addEventListener('load', () => {
-            setTimeout(startScanner, 1000);
-        });
     </script>
 </body>
 </html>
+
