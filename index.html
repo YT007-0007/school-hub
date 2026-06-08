@@ -3,78 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>School Hub</title>
+    <title>School Hub Portal</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; }
-        .nav-btn { padding: 12px 18px; margin: 5px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white; }
-        #camera-view { width: 100%; max-width: 400px; height: 250px; background: #eee; border: 2px dashed #555; margin: 20px auto; }
-        .hidden { display: none; }
-        .dashboard-box { margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        h1 { color: #2c3e50; margin-bottom: 5px; }
+        p { color: #7f8c8d; margin-top: 0; }
+        #reader {
+            width: 100%;
+            max-width: 400px;
+            margin: 20px auto;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #3498db !important;
+        }
+        .dashboard {
+            display: none;
+            animation: fadeIn 0.5s ease-in-out forwards;
+        }
+        .card {
+            background: #ecf0f1;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            text-align: left;
+            border-left: 5px solid #2ecc71;
+        }
+        .badge {
+            background: #2ecc71;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
+    <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
 
-    <h1>School Hub</h1>
-    <button class="nav-btn" onclick="showPage('scanner')">Scanner</button>
-    <button class="nav-btn" onclick="showPage('register')">Register</button>
-    <button class="nav-btn" onclick="showPage('admin')">Admin</button>
-
-    <div id="camera-container" class="hidden">
-        <div id="camera-view"></div>
-        <button onclick="stopScanner()">Stop</button>
-        <p id="fallback-msg" class="hidden">Live camera failed? <input type="file" id="qr-input" accept="image/*" capture="environment"></p>
+    <div id="login-page" class="container">
+        <h1>School Hub</h1>
+        <p>Scan your Master Admin QR code for portal access</p>
+        
+        <div id="reader"></div>
     </div>
 
-    <div id="scanner-page"><div id="scanner-result" class="dashboard-box">Click Scanner to begin.</div></div>
-    <div id="register-page" class="hidden"><div id="reg-result" class="dashboard-box">Register new user.</div></div>
-    <div id="admin-page" class="hidden"><div id="admin-result" class="dashboard-box">Admin Area.</div></div>
+    <div id="admin-dashboard" class="container dashboard">
+        <h1>Admin Control Panel <span class="badge">Master Access</span></h1>
+        <p>Manage grades, supply lists, and portal configurations.</p>
+        <hr>
+        
+        <div class="card">
+            <h3>Grade Management</h3>
+            <p>Review, approve, and alter student report cards.</p>
+        </div>
+        
+        <div class="card">
+            <h3>Supply Lists</h3>
+            <p>Update teacher inventory and classroom requirements.</p>
+        </div>
+        
+        <div class="card">
+            <h3>System Settings</h3>
+            <p>Database synchronization and user permissions active.</p>
+        </div>
+    </div>
 
-    <script src="https://unpkg.com/html5-qrcode"></script>
     <script>
-        const MASTER_KEY = "ADMIN_SECRET_1432";
-        const PASSWORD = "1432";
+        // Initialize scanner logic
+        function onScanSuccess(decodedText, decodedResult) {
+            console.log(`Scan identity detected: ${decodedText}`);
 
-        // BEAT FEEDBACK: Plays a simple beep sound
-        function playSuccessSound() {
-            const context = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = context.createOscillator();
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(800, context.currentTime);
-            oscillator.connect(context.destination);
-            oscillator.start();
-            oscillator.stop(context.currentTime + 0.2);
-        }
+            // Strict matching against your designated secret token
+            if (decodedText.trim() === "ADMIN_SECRET_1432") {
+                
+                // Stop the camera gracefully right after the beep
+                html5QrcodeScanner.clear().then(() => {
+                    // Interface transitions
+                    document.getElementById("login-page").style.display = "none";
+                    document.getElementById("admin-dashboard").style.display = "block";
+                }).catch(error => {
+                    console.error("Failed to clear scanner state:", error);
+                });
 
-        function showPage(page) {
-            stopScanner();
-            document.querySelectorAll('div[id$="-page"]').forEach(div => div.classList.add('hidden'));
-            document.getElementById(page + '-page').classList.remove('hidden');
-            startScanner(page);
-        }
-
-        function startScanner(mode) {
-            document.getElementById('camera-container').classList.remove('hidden');
-            const scanner = new Html5Qrcode("camera-view");
-            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 200 }, (data) => {
-                playSuccessSound(); // Alarm/Beep plays here
-                stopScanner();
-                handleData(mode, data);
-            }).catch(err => {
-                document.getElementById('fallback-msg').classList.remove('hidden');
-            });
-        }
-
-        function stopScanner() {
-            document.getElementById('camera-container').classList.add('hidden');
-        }
-
-        function handleData(mode, data) {
-            if (mode === 'scanner') {
-                document.getElementById('scanner-result').innerHTML = `<h3>Scanned: ${data}</h3>`;
-            } else if (mode === 'admin') {
-                if (data === MASTER_KEY) alert("Access Granted!");
+            } else {
+                alert("Access Denied: Invalid Administrative Token.");
             }
         }
-    </script>
-</body>
-</html>
+
+        function onScanFailure(error) {
+            // Silently monitor scanning updates without freezing interface
+            console.warn(`QR scan tracking hint: ${error}`);
+        }
+
+        // Mount and deploy scanner instance on load
+        const html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader",
