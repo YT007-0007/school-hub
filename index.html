@@ -7,7 +7,7 @@
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; }
         .nav-btn { padding: 12px 18px; margin: 5px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white; }
-        #camera-container { margin: 20px auto; padding: 20px; background: white; border: 2px dashed #555; max-width: 400px; }
+        #camera-view { width: 100%; max-width: 400px; height: 250px; background: #eee; border: 2px dashed #555; margin: 20px auto; }
         .hidden { display: none; }
         .dashboard-box { margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; }
     </style>
@@ -19,94 +19,61 @@
     <button class="nav-btn" onclick="showPage('register')">Register</button>
     <button class="nav-btn" onclick="showPage('admin')">Admin</button>
 
-    <hr>
-
     <div id="camera-container" class="hidden">
-        <p>Please take a photo of the QR code:</p>
-        <input type="file" id="qr-input" accept="image/*" capture="environment">
         <div id="camera-view"></div>
-        <br><button onclick="stopScanner()">Cancel</button>
+        <button onclick="stopScanner()">Stop</button>
+        <p id="fallback-msg" class="hidden">Live camera failed? <input type="file" id="qr-input" accept="image/*" capture="environment"></p>
     </div>
 
-    <div id="scanner-page">
-        <button onclick="startScanner('scanner')">Scan Attendance</button>
-        <div id="scanner-result" class="dashboard-box"></div>
-    </div>
-
-    <div id="register-page" class="hidden">
-        <h3>Register New User</h3>
-        <button onclick="startScanner('register')">Scan to Register</button>
-        <div id="reg-result" class="dashboard-box"></div>
-    </div>
-
-    <div id="admin-page" class="hidden">
-        <h3>Admin Access</h3>
-        <button onclick="promptPassword()">Use Password</button>
-        <button onclick="startScanner('admin')">Scan Admin QR</button>
-        <div id="admin-result" class="dashboard-box"></div>
-    </div>
+    <div id="scanner-page"><div id="scanner-result" class="dashboard-box">Click Scanner to begin.</div></div>
+    <div id="register-page" class="hidden"><div id="reg-result" class="dashboard-box">Register new user.</div></div>
+    <div id="admin-page" class="hidden"><div id="admin-result" class="dashboard-box">Admin Area.</div></div>
 
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script>
-        const MASTER_KEY = "ADMIN_SECRET_1432"; 
+        const MASTER_KEY = "ADMIN_SECRET_1432";
         const PASSWORD = "1432";
+
+        // BEAT FEEDBACK: Plays a simple beep sound
+        function playSuccessSound() {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = context.createOscillator();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(800, context.currentTime);
+            oscillator.connect(context.destination);
+            oscillator.start();
+            oscillator.stop(context.currentTime + 0.2);
+        }
 
         function showPage(page) {
             stopScanner();
             document.querySelectorAll('div[id$="-page"]').forEach(div => div.classList.add('hidden'));
             document.getElementById(page + '-page').classList.remove('hidden');
+            startScanner(page);
         }
 
         function startScanner(mode) {
             document.getElementById('camera-container').classList.remove('hidden');
-            const input = document.getElementById('qr-input');
-            
-            input.onchange = e => {
-                if (e.target.files.length == 0) return;
-                const file = e.target.files[0];
-                const scanner = new Html5Qrcode("camera-view");
-                
-                scanner.scanFile(file, true)
-                    .then(decodedText => {
-                        stopScanner();
-                        handleData(mode, decodedText);
-                    })
-                    .catch(err => alert("Could not read QR. Please try a clear, well-lit photo."));
-            };
+            const scanner = new Html5Qrcode("camera-view");
+            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 200 }, (data) => {
+                playSuccessSound(); // Alarm/Beep plays here
+                stopScanner();
+                handleData(mode, data);
+            }).catch(err => {
+                document.getElementById('fallback-msg').classList.remove('hidden');
+            });
         }
 
         function stopScanner() {
             document.getElementById('camera-container').classList.add('hidden');
-            document.getElementById('qr-input').value = ""; // Reset input
         }
 
         function handleData(mode, data) {
             if (mode === 'scanner') {
-                const role = localStorage.getItem(data);
-                document.getElementById('scanner-result').innerHTML = role ? `<h3>${data}</h3><p>Role: ${role}</p>` : "Unknown User. Please register.";
-            } else if (mode === 'register') {
-                document.getElementById('reg-result').innerHTML = `<h3>Found: ${data}</h3>
-                    <button onclick="saveUser('${data}', 'TEACHER')">Set as Teacher</button>
-                    <button onclick="saveUser('${data}', 'STUDENT')">Set as Student</button>`;
+                document.getElementById('scanner-result').innerHTML = `<h3>Scanned: ${data}</h3>`;
             } else if (mode === 'admin') {
-                if (data === MASTER_KEY) grantAdmin();
-                else alert("Invalid Admin QR Code!");
+                if (data === MASTER_KEY) alert("Access Granted!");
             }
-        }
-
-        function saveUser(name, role) {
-            localStorage.setItem(name, role);
-            alert("Registered " + name + " as " + role);
-            document.getElementById('reg-result').innerHTML = "User Saved!";
-        }
-
-        function promptPassword() {
-            if (prompt("Enter Password:") === PASSWORD) grantAdmin();
-            else alert("Wrong Password!");
-        }
-
-        function grantAdmin() {
-            document.getElementById('admin-result').innerHTML = "<h3>Admin Access Granted!</h3>";
         }
     </script>
 </body>
