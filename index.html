@@ -7,7 +7,7 @@
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; }
         .nav-btn { padding: 12px 18px; margin: 5px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white; }
-        #camera-view { width: 100%; max-width: 400px; height: 250px; background: #eee; border: 2px dashed #555; margin: 20px auto; }
+        #camera-container { margin: 20px auto; padding: 20px; background: white; border: 2px dashed #555; max-width: 400px; }
         .hidden { display: none; }
         .dashboard-box { margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; }
     </style>
@@ -22,8 +22,10 @@
     <hr>
 
     <div id="camera-container" class="hidden">
+        <p>Please take a photo of the QR code:</p>
+        <input type="file" id="qr-input" accept="image/*" capture="environment">
         <div id="camera-view"></div>
-        <button onclick="stopScanner()">Stop Scanner</button>
+        <br><button onclick="stopScanner()">Cancel</button>
     </div>
 
     <div id="scanner-page">
@@ -46,11 +48,8 @@
 
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script>
-        // ADMIN CONFIGURATION
         const MASTER_KEY = "ADMIN_SECRET_1432"; 
         const PASSWORD = "1432";
-        
-        let currentScanner = null;
 
         function showPage(page) {
             stopScanner();
@@ -60,18 +59,25 @@
 
         function startScanner(mode) {
             document.getElementById('camera-container').classList.remove('hidden');
-            currentScanner = new Html5Qrcode("camera-view");
-            currentScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 200 }, (data) => {
-                stopScanner();
-                handleData(mode, data);
-            });
+            const input = document.getElementById('qr-input');
+            
+            input.onchange = e => {
+                if (e.target.files.length == 0) return;
+                const file = e.target.files[0];
+                const scanner = new Html5Qrcode("camera-view");
+                
+                scanner.scanFile(file, true)
+                    .then(decodedText => {
+                        stopScanner();
+                        handleData(mode, decodedText);
+                    })
+                    .catch(err => alert("Could not read QR. Please try a clear, well-lit photo."));
+            };
         }
 
         function stopScanner() {
-            if (currentScanner) {
-                currentScanner.stop().catch(() => {});
-                document.getElementById('camera-container').classList.add('hidden');
-            }
+            document.getElementById('camera-container').classList.add('hidden');
+            document.getElementById('qr-input').value = ""; // Reset input
         }
 
         function handleData(mode, data) {
@@ -88,19 +94,19 @@
             }
         }
 
+        function saveUser(name, role) {
+            localStorage.setItem(name, role);
+            alert("Registered " + name + " as " + role);
+            document.getElementById('reg-result').innerHTML = "User Saved!";
+        }
+
         function promptPassword() {
             if (prompt("Enter Password:") === PASSWORD) grantAdmin();
             else alert("Wrong Password!");
         }
 
         function grantAdmin() {
-            document.getElementById('admin-result').innerHTML = "<h3>Admin Access Granted!</h3><p>Master Dashboard Loaded.</p>";
-        }
-
-        function saveUser(name, role) {
-            localStorage.setItem(name, role);
-            alert("Registered " + name + " as " + role);
-            document.getElementById('reg-result').innerHTML = "User Saved!";
+            document.getElementById('admin-result').innerHTML = "<h3>Admin Access Granted!</h3>";
         }
     </script>
 </body>
